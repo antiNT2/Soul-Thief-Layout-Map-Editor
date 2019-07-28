@@ -40,14 +40,13 @@ public class SaveSystem : MonoBehaviour
         if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.S))
             SaveButton();
 
-        if(PlayerPrefs.GetString("OpenFile") != "done" && (PlayerPrefs.GetString("OpenFile") != ""))
+        if (PlayerPrefs.GetString("OpenFile") != "done" && (PlayerPrefs.GetString("OpenFile") != ""))
         {
             string directory = PlayerPrefs.GetString("OpenFile");
             Load(directory);
             workingDirectory = directory;
         }
-            
-            
+
     }
 
     public void SaveAsButton()
@@ -75,10 +74,7 @@ public class SaveSystem : MonoBehaviour
     {
         foreach (Layer l in layerManager.layers)
         {
-            foreach (Tile t in l.allTiles)
-            {
-                GridManager.instance.DestroyCell(l.layerID, t.gridPos, -1);
-            }
+            layerManager.ClearLayers();
         }
         workingDirectory = "";
         currentFileName.text = "New Map.msav";
@@ -89,14 +85,15 @@ public class SaveSystem : MonoBehaviour
 
     public void LoadButton()
     {
-        if (Manager.localPlayerManager.networkIdentity.isServer)
-        {
-            var extension = new[] {
+        //if (Manager.localPlayerManager.networkIdentity.isServer)
+        //{
+        var extension = new[] {
                 new ExtensionFilter("Map Save", "msav" ),
             };
-            Load(StandaloneFileBrowser.OpenFilePanel("Open File", Application.persistentDataPath, extension, false)[0]);
-            CloseMenu();
-        }
+        NewButton();
+        Load(StandaloneFileBrowser.OpenFilePanel("Open File", Application.persistentDataPath, extension, false)[0]);
+        CloseMenu();
+        //}
     }
 
     public void MainMenuButton()
@@ -174,19 +171,12 @@ public class SaveSystem : MonoBehaviour
         BinaryFormatter bf = new BinaryFormatter();
         SaveData data = (SaveData)bf.Deserialize(file);
         file.Close();
-
-        foreach (Layer l in layerManager.layers)
-        {
-            foreach (Tile t in l.allTiles)
-            {
-                GridManager.instance.DestroyCell(l.layerID, t.gridPos, -1);
-            }
-        }
+        
         layerManager.ClearLayers();
         layerManager.layers = data.layers;
         Camera.main.transform.position = data.cameraPos;
-        Manager.localPlayerManager.CmdPlaceAllTiles(-1);
-        //layerManager.layers = data.layers;
+        Manager.localPlayerManager.OpenFilePlaceAllTiles(-1);
+
         print("DATA LOADED AT " + destination);
 
         workingDirectory = destination;
@@ -201,5 +191,5 @@ public class SaveSystem : MonoBehaviour
 public class SaveData
 {
     public SerializableVector2 cameraPos;
-    public List<Layer> layers;
+    public List<Layer> layers = new List<Layer>();
 }

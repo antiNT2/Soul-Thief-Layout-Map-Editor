@@ -75,7 +75,35 @@ public class Manager : NetworkBehaviour
                     for (int j = 0; j < LayerManager.instance.layers[i].allTiles.Count; j++)
                     {
                         Tile t = LayerManager.instance.layers[i].allTiles[j];
-                        RpcPlaceTileOnSelectedPlayer((int)t.type, t.tileColor, t.gridPos, i, netId);
+                        RpcPlaceTileOnSelectedPlayer((int)t.type, t.tileColor, t.gridPos, i, netId, t.rotationDegrees);
+                    }
+                }
+            }
+        }
+    }
+
+    public void OpenFilePlaceAllTiles(int netId)
+    {
+        if (netId > 1 || netId == -1)
+        {
+            //RpcClearLayersOnSelectedPlayer(netId);
+            for (int i = 0; i < LayerManager.instance.layers.Count; i++)
+            {
+                if (LayerManager.instance.GetLayer(i).deleted == false)
+                {
+                    if (i == 0)
+                    {
+                        CmdRenameLayerSelectedPlayer(netId, i, LayerManager.instance.GetLayer(i).layerName);
+                    }
+                    else
+                    {
+                        CmdCreateLayerOnSelectedPlayer(netId, LayerManager.instance.GetLayer(i).layerName, netId);
+                    }
+
+                    for (int j = 0; j < LayerManager.instance.layers[i].allTiles.Count; j++)
+                    {
+                        Tile t = LayerManager.instance.layers[i].allTiles[j];
+                        CmdPlaceTileOnSelectedPlayer((int)t.type, t.tileColor, t.gridPos, i, netId, t.rotationDegrees);
                     }
                 }
             }
@@ -103,14 +131,35 @@ public class Manager : NetworkBehaviour
         GridManager.instance.PlaceSelectedTileAtMousePos(_shapeID, _tileColor, _gridPos, _layer, undoPlayerID);
     }
 
+    [Command]
+    void CmdPlaceTileOnSelectedPlayer(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int netID, float rotationZ)
+    {
+        RpcPlaceTileOnSelectedPlayer(_shapeID, _tileColor, _gridPos, _layer, netID, rotationZ);
+    }
+
     [ClientRpc]
-    void RpcPlaceTileOnSelectedPlayer(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int netID)
+    void RpcPlaceTileOnSelectedPlayer(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int netID, float rotationZ)
     {
         if (networkIdentity == null)
             networkIdentity = GetComponent<NetworkIdentity>();
 
         if (int.Parse(networkIdentity.netId.ToString()) == netID || netID == -1)
-            GridManager.instance.PlaceSelectedTileAtMousePos(_shapeID, _tileColor, _gridPos, _layer);
+            GridManager.instance.PlaceSelectedTileAtMousePos(_shapeID, _tileColor, _gridPos, _layer, -1, rotationZ);
+    }
+    #endregion
+
+    #region RotateTile
+    [Command]
+    public void CmdRotateTile(Vector2 _gridPos, int _layer, float degrees, int undoPlayerID)
+    {
+        RpcRotateTile(_gridPos, _layer,degrees, undoPlayerID);
+    }
+
+    [ClientRpc]
+    void RpcRotateTile(Vector2 _gridPos, int _layer, float degrees, int undoPlayerID)
+    {
+        GridManager.instance.RotateTile(_gridPos, _layer, degrees, undoPlayerID);
+        //GridManager.instance.PlaceSelectedTileAtMousePos(_shapeID, _tileColor, _gridPos, _layer, undoPlayerID);
     }
     #endregion
 
@@ -142,6 +191,12 @@ public class Manager : NetworkBehaviour
         Layer myLayer = new Layer();
         myLayer.layerName = "Layer " + layerManager.layers.Count;
         layerManager.AddLayer(myLayer, undoPlayerID);
+    }
+
+    [Command]
+    public void CmdCreateLayerOnSelectedPlayer(int netID, string layerName, int undoPlayerID)
+    {
+        RpcCreateLayerOnSelectedPlayer(netID, layerName, undoPlayerID);
     }
 
     [ClientRpc]
@@ -176,8 +231,10 @@ public class Manager : NetworkBehaviour
         LayerManager.instance.AddLayer(myLayer, -1);
 
         SaveSystem.instance.workingDirectory = "";
+
         UndoActions.instance.actionsMade.Clear();
         UndoActions.instance.AddAction();
+
         //CmdAddAction();
         Camera.main.transform.position = new Vector3(100f, 100f, -10);
     }
@@ -214,6 +271,7 @@ public class Manager : NetworkBehaviour
         if (activeLayer != 0)
         {
             LayerManager.instance.GetLayer(activeLayer).deleted = true;
+            Destroy(LayerManager.instance.GetLayer(activeLayer).tilemap.gameObject);
         }
         LayerManager.instance.activeLayer = 0;
         if (undoPlayerID == int.Parse(Manager.localPlayerManager.netId.ToString()))
@@ -231,6 +289,7 @@ public class Manager : NetworkBehaviour
     {
         LayerManager.instance.GetLayer(layerID).deleted = false;
         LayerManager.instance.GetLayer(layerID).layerDisplay.SetActive(true);
+        LayerManager.instance.SpawnLayerTilemap(LayerManager.instance.GetLayer(layerID));
 
         if (undoPlayerID == int.Parse(Manager.localPlayerManager.netId.ToString()))
             UndoActions.instance.AddDataToCurrentAction(ActionData.ActionType.CreateLayer, null, LayerManager.instance.GetLayer(layerID));

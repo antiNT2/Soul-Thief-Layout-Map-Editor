@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 using Assets.SimpleColorPicker.Scripts;
 using System.Runtime.Serialization;
 
@@ -12,9 +13,13 @@ public class GridManager : MonoBehaviour
     public float yOffset;
     public int shapeID = 0;
 
-    [SerializeField]
+    /*[SerializeField]
     GameObject tileParent;
-    public GameObject[] tiles;
+    public GameObject[] tiles;*/
+
+    [Header("----------")]
+    [SerializeField]
+    public UnityEngine.Tilemaps.Tile[] tilemapTiles;
 
     Camera cam;
     Vector2 mousePos;
@@ -63,34 +68,46 @@ public class GridManager : MonoBehaviour
 
         if (Input.GetAxis("Mouse ScrollWheel") != 0)
         {
-            cam.orthographicSize += Input.GetAxis("Mouse ScrollWheel") * -4;
-            cam.orthographicSize = Mathf.Clamp(cam.orthographicSize, 1.4f, 27f);
+            cam.orthographicSize += Input.GetAxis("Mouse ScrollWheel") * -4f;
+            cam.orthographicSize = Mathf.Clamp(cam.orthographicSize, 2f, 40f);
         }
         if (Input.GetKey(KeyCode.Mouse2))
         {
-            float scrollSpeed = 30f + Mathf.Abs(mousePos.x - lastMousePos.x);
-            float minimumScroll = 5f;
+            float scrollSpeed = 4f;
+            float minimumScroll = 0.0005f;
+            float mouseDeltaX = Mathf.Abs(mousePos.x - lastMousePos.x) + 1f;
+            float mouseDeltaY = Mathf.Abs(mousePos.y - lastMousePos.y) + 1f;
+
+            if (Input.GetKey(KeyCode.LeftControl))
+                scrollSpeed = 8f;
+            if (Input.GetKey(KeyCode.LeftShift))
+                scrollSpeed = 2f;
+
             if (mousePos.x < lastMousePos.x - minimumScroll)
             {
-                cam.transform.Translate(Vector2.right * Time.deltaTime * scrollSpeed);
+                //cam.transform.Translate(Vector2.right * Time.deltaTime * scrollSpeed);
+                cam.transform.position = Vector3.Lerp(cam.transform.position, cam.transform.position + Vector3.right * scrollSpeed, Time.deltaTime * scrollSpeed * mouseDeltaX);
             }
             if (mousePos.x > lastMousePos.x + minimumScroll)
             {
-                cam.transform.Translate(Vector2.left * Time.deltaTime * scrollSpeed);
+                //cam.transform.Translate(Vector2.left * Time.deltaTime * scrollSpeed);
+                cam.transform.position = Vector3.Lerp(cam.transform.position, cam.transform.position + Vector3.left * scrollSpeed, Time.deltaTime * scrollSpeed * mouseDeltaX);
             }
-            if (mousePos.y < lastMousePos.y - (minimumScroll - 2))
+            if (mousePos.y < lastMousePos.y - (minimumScroll * 0.6f))
             {
-                cam.transform.Translate(Vector2.up * Time.deltaTime * scrollSpeed);
+                //cam.transform.Translate(Vector2.up * Time.deltaTime * scrollSpeed);
+                cam.transform.position = Vector3.Lerp(cam.transform.position, cam.transform.position + Vector3.up * scrollSpeed, Time.deltaTime * scrollSpeed * mouseDeltaY);
             }
-            if (mousePos.y > lastMousePos.y + (minimumScroll - 2))
+            if (mousePos.y > lastMousePos.y + (minimumScroll * 0.6f))
             {
-                cam.transform.Translate(Vector2.down * Time.deltaTime * scrollSpeed);
+                //cam.transform.Translate(Vector2.down * Time.deltaTime * scrollSpeed);
+                cam.transform.position = Vector3.Lerp(cam.transform.position, cam.transform.position + Vector3.down * scrollSpeed, Time.deltaTime * scrollSpeed * mouseDeltaY);
             }
         }
 
+        Vector2 mouse = cam.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, cam.nearClipPlane));
         if (Input.GetKeyDown(KeyCode.Mouse1))
         {
-            Vector2 mouse = cam.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, cam.nearClipPlane));
             if (Input.GetKey(KeyCode.LeftShift))
             {
                 if (GetCellByGridPos(LayerManager.instance.activeLayer, Vector2ToGrid(mouse)) != null && LayerManager.instance.GetLayer(LayerManager.instance.activeLayer).visible == true)
@@ -103,6 +120,15 @@ public class GridManager : MonoBehaviour
                     pickedColor = GetCellByGridPos(LayerManager.instance.activeLayer, Vector2ToGrid(mouse)).tileColor;
                 ColorPicker.Instance.SetColor(pickedColor, sliders: false);
             }
+        }
+
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            RotateSelectedTileAtMousePos(Vector2ToGrid(mouse), -45f);
+        }
+        else if (Input.GetKeyDown(KeyCode.R))
+        {
+            RotateSelectedTileAtMousePos(Vector2ToGrid(mouse), 45f);
         }
         #endregion
 
@@ -122,7 +148,13 @@ public class GridManager : MonoBehaviour
         canPaint = false;
     }
 
-    public void PlaceSelectedTileAtMousePos(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int undoPlayerID = -1)
+    void RotateSelectedTileAtMousePos(Vector2 _gridPos, float degrees)
+    {
+        Manager.localPlayerManager.CmdRotateTile(_gridPos, LayerManager.instance.activeLayer, degrees, int.Parse(Manager.localPlayerManager.netId.ToString()));
+        RotateTile(_gridPos, LayerManager.instance.activeLayer, degrees, -2);
+    }
+
+    public void PlaceSelectedTileAtMousePos(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int undoPlayerID = -1, float rotationZ = 0f)
     {
         if (int.Parse(Manager.localPlayerManager.netId.ToString()) != undoPlayerID) //prevents placing the tile on the local player
         {
@@ -132,6 +164,24 @@ public class GridManager : MonoBehaviour
             Vector2 gridPos = _gridPos;
 
             PlaceTile(tileToPlace, gridPos, _layer, undoPlayerID);
+            RotateTile(gridPos, _layer, rotationZ);
+        }
+    }
+
+    public void RotateTile(Vector2 _gridPos, int _layer, float degrees, float undoPlayerID = -1)
+    {
+        if (int.Parse(Manager.localPlayerManager.netId.ToString()) != undoPlayerID) //prevents placing the tile on the local player
+        {
+            if (IsCellEmpty(_layer, _gridPos))
+                return;
+
+            Vector3Int gridPos = new Vector3Int((int)_gridPos.x, (int)_gridPos.y, -10);
+            Quaternion oldRotation = LayerManager.instance.GetLayer(_layer).tilemap.GetTransformMatrix(gridPos).rotation;
+            oldRotation.eulerAngles += Vector3.forward * degrees;
+
+            Matrix4x4 matrix = Matrix4x4.TRS(Vector3.zero, oldRotation, Vector3.one);
+            LayerManager.instance.GetLayer(_layer).tilemap.SetTransformMatrix(gridPos, matrix);
+            GetCellByGridPos(_layer, _gridPos).rotationDegrees = oldRotation.eulerAngles.z;
         }
     }
 
@@ -168,6 +218,12 @@ public class GridManager : MonoBehaviour
         //int yPos = Mathf.RoundToInt(vector.y);
         int yPos = (int)vector.y;
 
+        #region Bugfix
+        if (yPos < 0)
+            yPos -= 1;
+        if (xPos < 0)
+            xPos -= 1;
+        #endregion
 
         pos.x = xPos;
         pos.y = yPos;
@@ -189,13 +245,7 @@ public class GridManager : MonoBehaviour
         }
         if (tileToPlace.tileColor != Color.clear)
         {
-            GameObject t = Instantiate(tiles[(int)tileToPlace.type], tileParent.transform);
-
-            t.transform.position = GridPosToVector2((int)gridPos.x, (int)gridPos.y);
-            t.GetComponent<TileDisplay>().tileID = tileToPlace.id;
-            t.GetComponent<TileDisplay>().layerID = layerID;
-            t.GetComponent<TileDisplay>().SetColor(tileToPlace.tileColor);
-            t.GetComponent<SpriteRenderer>().sortingOrder = LayerManager.instance.GetLayer(layerID).sortingOrder;
+            SpawnLoadedTile(tileToPlace, layerID);
 
             LayerManager.instance.GetLayer(layerID).allTiles.Add(tileToPlace);
             if (undoPlayerID == -2)
@@ -211,13 +261,10 @@ public class GridManager : MonoBehaviour
 
     public void SpawnLoadedTile(Tile tileToPlace, int layerID)
     {
-        GameObject t = Instantiate(tiles[(int)tileToPlace.type], tileParent.transform);
+        UnityEngine.Tilemaps.Tile newTile = tilemapTiles[(int)tileToPlace.type];
+        newTile.color = tileToPlace.tileColor;
 
-        t.transform.position = GridPosToVector2((int)tileToPlace.gridPos.x, (int)tileToPlace.gridPos.y);
-        t.GetComponent<TileDisplay>().tileID = tileToPlace.id;
-        t.GetComponent<TileDisplay>().layerID = layerID;
-        t.GetComponent<TileDisplay>().SetColor(tileToPlace.tileColor);
-        t.GetComponent<SpriteRenderer>().sortingOrder = LayerManager.instance.GetLayer(layerID).sortingOrder;
+        LayerManager.instance.GetLayer(layerID).tilemap.SetTile(tileToPlace.gridPos, newTile);
     }
 
     bool IsCellEmpty(int layerID, Vector2 cellToCheck)
@@ -239,10 +286,14 @@ public class GridManager : MonoBehaviour
             {
                 //print("Destroyed at " + cellToDestroy + "(undoPlayerID: " + undoPlayerID + ")");
                 LayerManager.instance.GetLayer(layerID).allTiles[i].destroyed = true;
+                LayerManager.instance.GetLayer(layerID).tilemap.SetTile(LayerManager.instance.GetLayer(layerID).allTiles[i].gridPos, null);
+
                 if (undoPlayerID == -2)
                 {
                     UndoActions.instance.AddDataToCurrentAction(ActionData.ActionType.RemoveTile, LayerManager.instance.GetLayer(layerID).allTiles[i]);
                 }
+
+                LayerManager.instance.GetLayer(layerID).allTiles.RemoveAt(i);
             }
         }
     }
@@ -275,6 +326,8 @@ public class Tile
     public int layerID;
 
     public bool destroyed = false;
+
+    public float rotationDegrees;
 }
 
 /// <summary>
@@ -354,6 +407,16 @@ public struct SerializableVector2
     public static implicit operator SerializableVector2(Vector3 rValue)
     {
         return new SerializableVector2(rValue.x, rValue.y);
+    }
+
+    /// <summary>
+    /// Automatic conversion from SerializableVector2 to Vector3Int
+    /// </summary>
+    /// <param name="rValue"></param>
+    /// <returns></returns>
+    public static implicit operator Vector3Int(SerializableVector2 rValue)
+    {
+        return new Vector3Int((int)rValue.x, (int)rValue.y, -10);
     }
 
     public static bool operator ==(SerializableVector2 a, SerializableVector2 b)

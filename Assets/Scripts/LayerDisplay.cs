@@ -86,6 +86,6 @@ public class LayerDisplay : MonoBehaviour
 
     public void ToggleVisibility()
     {
-        layerManager.GetLayer(thisLayer).visible = !layerManager.GetLayer(thisLayer).visible;
+        layerManager.SetLayerVisibility(thisLayer, !layerManager.GetLayer(thisLayer).visible);        
     }
 }

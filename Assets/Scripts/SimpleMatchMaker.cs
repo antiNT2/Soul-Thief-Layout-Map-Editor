@@ -15,6 +15,12 @@ public class SimpleMatchMaker : MonoBehaviour
     [SerializeField]
     Button okButton;
 
+    private void Start()
+    {
+        CustomNetworkManager.singleton.StopHost();
+        CustomNetworkManager.singleton.StartMatchMaker();
+    }
+
     void CreateInternetMatch()
     {
         loadingStatuts.text = "Creating room...";
@@ -44,8 +50,8 @@ public class SimpleMatchMaker : MonoBehaviour
     public void FindInternetMatch()
     {
         loadingPanel.SetActive(true);
-        CustomNetworkManager.singleton.StopHost();
-        CustomNetworkManager.singleton.StartMatchMaker();
+        /*CustomNetworkManager.singleton.StopHost();
+        CustomNetworkManager.singleton.StartMatchMaker();*/
         loadingStatuts.text = "Looking for room...";
         CustomNetworkManager.singleton.matchMaker.ListMatches(0, 10, Application.version, true, 0, 0, OnInternetMatchList);
     }

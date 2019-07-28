@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 using UnityEngine.UI;
 
 public class LayerManager : MonoBehaviour
@@ -9,6 +10,10 @@ public class LayerManager : MonoBehaviour
     GameObject layerDisplayPrefab;
     [SerializeField]
     public GameObject layerDisplayParent;
+    [SerializeField]
+    public Grid layerTilemapsParent;
+    [SerializeField]
+    public Tilemap layerTilemapsPrefab;
 
     public List<Layer> layers = new List<Layer>();
     public int activeLayer = 0;
@@ -50,6 +55,7 @@ public class LayerManager : MonoBehaviour
     public void SetLayerVisibility(int id, bool visible)
     {
         GetLayer(id).visible = visible;
+        GetLayer(id).tilemap.GetComponent<TilemapRenderer>().enabled = visible;
     }
 
     public void SetLayerName(int id, string name)
@@ -71,6 +77,8 @@ public class LayerManager : MonoBehaviour
         layers.Add(layerToAdd);
         if (layerToAdd.layerID != 0 && undoPlayerID == int.Parse(Manager.localPlayerManager.netId.ToString()))
             UndoActions.instance.AddDataToCurrentAction(ActionData.ActionType.CreateLayer, null, layerToAdd);
+
+        SpawnLayerTilemap(layerToAdd);
     }
 
     public void AddLoadedLayers(Layer layerToAdd)
@@ -80,12 +88,23 @@ public class LayerManager : MonoBehaviour
         layerDisplay.name = layerToAdd.layerName;
         layerDisplay.GetComponent<LayerDisplay>().thisLayer = layerToAdd.layerID;
 
+        SpawnLayerTilemap(layerToAdd);
     }
+
+    public void SpawnLayerTilemap(Layer layerToAdd)
+    {
+        Tilemap layerTilemap = Instantiate(layerTilemapsPrefab, layerTilemapsParent.transform);
+        layerTilemap.gameObject.name = "Layer " + layerToAdd.layerID;
+        layerTilemap.GetComponent<TilemapRenderer>().sortingOrder = layerToAdd.sortingOrder;
+        layerToAdd.tilemap = layerTilemap;
+    }
+
     public void ClearLayers()
     {
         for (int j = 0; j < layerDisplayParent.transform.childCount; j++)
         {
             Destroy(layerDisplayParent.transform.GetChild(j).gameObject);
+            Destroy(layerTilemapsParent.transform.GetChild(j).gameObject);
         }
         layers = new List<Layer>();
         activeLayer = 0;
@@ -101,6 +120,7 @@ public class LayerManager : MonoBehaviour
             }
         }
 
+        Debug.LogError("LAYER " + id + " NOT FOUND");
         return null;
     }
 }
@@ -112,6 +132,8 @@ public class Layer
     public string layerName;
     [System.NonSerialized]
     public GameObject layerDisplay;
+    [System.NonSerialized]
+    public Tilemap tilemap;
     public List<Tile> allTiles = new List<Tile>();
 
     public Tile GetTile(int id)

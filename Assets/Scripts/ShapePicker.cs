@@ -31,7 +31,8 @@ public class ShapePicker : MonoBehaviour {
     public void ApplyShape()
     {
         gridManager.shapeID = shapeID;
-        SelectedShapePreview.sprite = gridManager.tiles[shapeID].GetComponent<SpriteRenderer>().sprite;
+        //SelectedShapePreview.sprite = gridManager.tiles[shapeID].GetComponent<SpriteRenderer>().sprite;
+        SelectedShapePreview.sprite = gridManager.tilemapTiles[shapeID].sprite;
 
         closePanelButton.rectTransform.localRotation = new Quaternion(0, 0, 180, 0);
         panel.gameObject.SetActive(false);
