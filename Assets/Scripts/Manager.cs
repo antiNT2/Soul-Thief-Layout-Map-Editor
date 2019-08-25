@@ -9,6 +9,10 @@ public class Manager : NetworkBehaviour
 {
     [SerializeField]
     GameObject userCursor;
+    [SerializeField]
+    public GameObject userSelectionRectangle;
+    [SyncVar]
+    public Vector2 selectionRectangleSize;
     Camera cam;
     Vector2 mousePos;
     [HideInInspector]
@@ -51,6 +55,20 @@ public class Manager : NetworkBehaviour
     public override void OnNetworkDestroy()
     {
         base.OnNetworkDestroy();
+    }
+
+    public GameObject FindPlayerById(int id)
+    {
+        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
+
+        for (int i = 0; i < players.Length; i++)
+        {
+            if (int.Parse(players[i].GetComponentInParent<NetworkIdentity>().netId.ToString()) == id)
+                return players[i].transform.parent.gameObject;
+        }
+
+        Debug.LogError("Couldnt find player " + id);
+        return null;
     }
 
     [Command]
@@ -112,13 +130,13 @@ public class Manager : NetworkBehaviour
 
     #region Place Tile
     [Command]
-    public void CmdPlaceTile(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int undoPlayerID)
+    public void CmdPlaceTile(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int undoPlayerID, float rotationZ)
     {
-        RpcPlaceTile(_shapeID, _tileColor, _gridPos, _layer, undoPlayerID);
+        RpcPlaceTile(_shapeID, _tileColor, _gridPos, _layer, undoPlayerID, rotationZ);
     }
 
     [ClientRpc]
-    void RpcPlaceTile(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int undoPlayerID)
+    void RpcPlaceTile(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int undoPlayerID, float rotationZ)
     {
         if (LayerManager.instance.GetLayer(_layer) == null)
         {
@@ -128,7 +146,7 @@ public class Manager : NetworkBehaviour
             layerManager.AddLayer(myLayer, undoPlayerID);
         }
 
-        GridManager.instance.PlaceSelectedTileAtMousePos(_shapeID, _tileColor, _gridPos, _layer, undoPlayerID);
+        GridManager.instance.PlaceSelectedTileAtMousePos(_shapeID, _tileColor, _gridPos, _layer, undoPlayerID, rotationZ);
     }
 
     [Command]
@@ -152,7 +170,7 @@ public class Manager : NetworkBehaviour
     [Command]
     public void CmdRotateTile(Vector2 _gridPos, int _layer, float degrees, int undoPlayerID)
     {
-        RpcRotateTile(_gridPos, _layer,degrees, undoPlayerID);
+        RpcRotateTile(_gridPos, _layer, degrees, undoPlayerID);
     }
 
     [ClientRpc]
@@ -370,6 +388,79 @@ public class Manager : NetworkBehaviour
         {
             RpcReceiveMessage(m.messageContent, m.username, specifiedUserID);
         }
+    }
+    #endregion
+
+    #region SelectionRectangle
+    [Command]
+    public void CmdEnableRectangle(int rectangleID)
+    {
+        RpcEnableRectangle(rectangleID);
+    }
+    [ClientRpc]
+    void RpcEnableRectangle(int rectangleID)
+    {
+        SelectTiles.instance.EnableRectangle(rectangleID);
+    }
+    [Command]
+    public void CmdDisableRectangle(int rectangleID)
+    {
+        RpcDisableRectangle(rectangleID);
+    }
+    [ClientRpc]
+    void RpcDisableRectangle(int rectangleID)
+    {
+        SelectTiles.instance.DisableRectangle(rectangleID);
+    }
+    [Command]
+    public void CmdSetRectangleSize(int rectangleID, Vector2 size)
+    {
+        FindPlayerById(rectangleID).GetComponent<Manager>().selectionRectangleSize = size;
+    }
+    #endregion
+
+    #region MoveTiles
+    [Command]
+    public void CmdClearSelectionTilemap(int selectionTilemapId)
+    {
+        RpcClearSelectionTilemap(selectionTilemapId);
+    }
+    [ClientRpc]
+    public void RpcClearSelectionTilemap(int selectionTilemapId)
+    {
+        SelectTiles.instance.ClearSelectionTilemap(selectionTilemapId);
+    }
+
+    [Command]
+    public void CmdTransferTileToSelectionTilemap(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int selectionTilemapId, float rotationZ)
+    {
+        RpcTransferTileToSelectionTilemap(_shapeID, _tileColor, _gridPos, _layer, selectionTilemapId, rotationZ);
+    }
+
+    [ClientRpc]
+    public void RpcTransferTileToSelectionTilemap(int _shapeID, Color _tileColor, Vector2 _gridPos, int _layer, int selectionTilemapId, float rotationZ)
+    {
+        Tile tileToTransfer = new Tile();
+        tileToTransfer.type = (Tile.TileType)_shapeID;
+        tileToTransfer.tileColor = _tileColor;
+        tileToTransfer.gridPos = _gridPos;
+        tileToTransfer.layerID = _layer;
+        tileToTransfer.rotationDegrees = rotationZ;
+
+        SelectTiles.instance.TransferTileToSelectionTilemap(tileToTransfer, selectionTilemapId);
+    }
+    #endregion
+
+    #region RotateSelectedTiles
+    [Command]
+    public void CmdRotateTileOnSelectionTilemap(Vector2 _gridPos, float degrees, int selectionTilemapId)
+    {
+        RpcRotateTileOnSelectionTilemap(_gridPos, degrees, selectionTilemapId);
+    }
+    [ClientRpc]
+    void RpcRotateTileOnSelectionTilemap(Vector2 _gridPos, float degrees, int selectionTilemapId)
+    {
+        SelectTiles.instance.RotateTileOnSelectionTilemap(_gridPos, degrees, selectionTilemapId);
     }
     #endregion
 }

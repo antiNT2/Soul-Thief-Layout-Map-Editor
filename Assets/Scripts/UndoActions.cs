@@ -1,9 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.IO;
-using System.Linq;
 
 public class UndoActions : MonoBehaviour
 {
@@ -32,11 +29,13 @@ public class UndoActions : MonoBehaviour
 
         if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.Z))
         {
-            Undo();
+            if (SelectTiles.instance.HasSelectedTiles() == false)
+                Undo();
         }
         if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.Y))
         {
-            Redo();
+            if (SelectTiles.instance.HasSelectedTiles() == false)
+                Redo();
         }
 
         for (int i = 0; i < actionsMade.Count; i++)
@@ -78,48 +77,6 @@ public class UndoActions : MonoBehaviour
             AddAction();
 
         actionsMade[actionsMade.Count - 1].locked = true;
-        //AddSnapshot();
-    }
-
-    void AddSnapshot()
-    {
-        print("K");
-        SaveData dataToSave = new SaveData();
-        dataToSave.layers = LayerManager.instance.layers;
-
-        string destination = Application.persistentDataPath + "/temp.msav";
-
-        #region Save
-        FileStream file;
-
-        if (File.Exists(destination))
-            file = File.OpenWrite(destination);
-        else
-            file = File.Create(destination);
-
-        BinaryFormatter bf = new BinaryFormatter();
-        bf.Serialize(file, dataToSave);
-        file.Close();
-        #endregion
-
-        #region Load
-        FileStream file2;
-
-        if (File.Exists(destination))
-            file2 = File.OpenRead(destination);
-        else
-        {
-            Debug.LogError("File not found");
-            return;
-        }
-
-        BinaryFormatter bf2 = new BinaryFormatter();
-        SaveData data = (SaveData)bf2.Deserialize(file2);
-        file2.Close();
-        #endregion
-
-        actionsMade[actionsMade.Count - 1].snapshot = data;
-        return;
     }
 
     void RemoveActionsFromIndex(int index)
@@ -160,7 +117,7 @@ public class UndoActions : MonoBehaviour
         }
         else
         {
-            print("BLOCKED " + type.ToString());
+            print("BLOCKED " + type.ToString() + " last actual action is " + GetLastActualAction());
         }
 
     }
@@ -226,21 +183,25 @@ public class UndoActions : MonoBehaviour
             }
             if (type == ActionData.ActionType.PlaceTile)
             {
-                Manager.localPlayerManager.CmdRemoveTile(thisAction.tilesEdited.layerID, thisAction.tilesEdited.gridPos, -1);                   
+                Manager.localPlayerManager.CmdRemoveTile(thisAction.tilesEdited.layerID, thisAction.tilesEdited.gridPos, -1);
             }
             if (type == ActionData.ActionType.RemoveTile)
             {
-                Manager.localPlayerManager.CmdPlaceTile((int)thisAction.tilesEdited.type, thisAction.tilesEdited.tileColor, thisAction.tilesEdited.gridPos, thisAction.tilesEdited.layerID, -1);
+                Manager.localPlayerManager.CmdPlaceTile((int)thisAction.tilesEdited.type, thisAction.tilesEdited.tileColor, thisAction.tilesEdited.gridPos, thisAction.tilesEdited.layerID, -1, 0f);
             }
 
         }
-
-        /*Manager.localPlayerManager.CmdClearLayers(false);
-        for (int j = 0; j < actionsMade[GetLastActualAction()].snapshot.layers.Count; j++)
+        for (int i = 0; i < actionsMade[GetLastActualAction()].actionData.Count; i++)
         {
-            LayerManager.instance.AddLayer(actionsMade[GetLastActualAction()].snapshot.layers[j], 0);
+            ActionData thisAction = actionsMade[GetLastActualAction()].actionData[i];
+            ActionData.ActionType type = actionsMade[GetLastActualAction()].actionData[i].actionsMadeWithOneClick;
+
+            if (type == ActionData.ActionType.RemoveTile)
+            {
+                Manager.localPlayerManager.CmdPlaceTile((int)thisAction.tilesEdited.type, thisAction.tilesEdited.tileColor, thisAction.tilesEdited.gridPos, thisAction.tilesEdited.layerID, -1, 0f);
+            }
+
         }
-        Manager.localPlayerManager.OpenFilePlaceAllTiles(-1);*/
 
         actionsMade[GetLastActualAction()].unDone = true;
     }
@@ -281,7 +242,7 @@ public class UndoActions : MonoBehaviour
             }
             if (type == ActionData.ActionType.PlaceTile)
             {
-                Manager.localPlayerManager.CmdPlaceTile((int)thisAction.actionData[i].tilesEdited.type, thisAction.actionData[i].tilesEdited.tileColor, thisAction.actionData[i].tilesEdited.gridPos, thisAction.actionData[i].tilesEdited.layerID, -1);
+                Manager.localPlayerManager.CmdPlaceTile((int)thisAction.actionData[i].tilesEdited.type, thisAction.actionData[i].tilesEdited.tileColor, thisAction.actionData[i].tilesEdited.gridPos, thisAction.actionData[i].tilesEdited.layerID, -1, 0f);
             }
         }
 
@@ -291,13 +252,27 @@ public class UndoActions : MonoBehaviour
 
         actionsMade[GetLastUndoneAction()].unDone = false;
     }
+
+    public void FuseLastTwoActions()
+    {
+        if (actionsMade.Count < 3)
+            return;
+
+        Action last = actionsMade[actionsMade.Count - 1];
+        Action beforeLast = actionsMade[actionsMade.Count - 2];
+
+        for (int i = 0; i < beforeLast.actionData.Count; i++)
+        {
+            last.actionData.Add(beforeLast.actionData[i]);
+        }
+        actionsMade.Remove(beforeLast);
+    }
 }
 
 [System.Serializable]
 public class Action
 {
     public List<ActionData> actionData = new List<ActionData>();
-    public SaveData snapshot = new SaveData();
 
     public bool unDone = false;
     public bool locked = false;

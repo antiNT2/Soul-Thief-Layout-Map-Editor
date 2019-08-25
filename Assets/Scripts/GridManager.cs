@@ -56,12 +56,12 @@ public class GridManager : MonoBehaviour
             UndoActions.instance.AddAction();
         }
 
-        if (Input.GetKey(KeyCode.Mouse0) && canPaint)
+        if (Input.GetKey(KeyCode.Mouse0) && canPaint && Input.GetKey(KeyCode.LeftAlt) == false && ToolSelection.instance.currentTool == ToolSelection.ToolType.Paint)
         {
             Cursor.visible = false;
             if (IsSameTilePresentAtGridPos(shapeID, ColorPicker.Instance.Color, Vector2ToGrid(cam.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, cam.nearClipPlane))), LayerManager.instance.activeLayer) == false)
             {
-                Manager.localPlayerManager.CmdPlaceTile(shapeID, ColorPicker.Instance.Color, Vector2ToGrid(cam.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, cam.nearClipPlane))), LayerManager.instance.activeLayer, int.Parse(Manager.localPlayerManager.netId.ToString()));
+                Manager.localPlayerManager.CmdPlaceTile(shapeID, ColorPicker.Instance.Color, Vector2ToGrid(cam.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, cam.nearClipPlane))), LayerManager.instance.activeLayer, int.Parse(Manager.localPlayerManager.netId.ToString()), 0f);
                 GridManager.instance.PlaceSelectedTileAtMousePos(shapeID, ColorPicker.Instance.Color, Vector2ToGrid(cam.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, cam.nearClipPlane))), LayerManager.instance.activeLayer, -2);
             }
         }
@@ -71,7 +71,7 @@ public class GridManager : MonoBehaviour
             cam.orthographicSize += Input.GetAxis("Mouse ScrollWheel") * -4f;
             cam.orthographicSize = Mathf.Clamp(cam.orthographicSize, 2f, 40f);
         }
-        if (Input.GetKey(KeyCode.Mouse2))
+        if (Input.GetKey(KeyCode.Mouse2) || (Input.GetKey(KeyCode.Mouse0) && Input.GetKey(KeyCode.LeftAlt)))
         {
             float scrollSpeed = 4f;
             float minimumScroll = 0.0005f;
@@ -124,14 +124,22 @@ public class GridManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.E))
         {
-            RotateSelectedTileAtMousePos(Vector2ToGrid(mouse), -45f);
+            if (ToolSelection.instance.currentTool == ToolSelection.ToolType.SelectionRectangle && SelectTiles.instance.HasSelectedTiles())
+                SelectTiles.instance.RotateAllSelectedTiles(-45f);
+            else
+                RotateSelectedTileAtMousePos(Vector2ToGrid(mouse), -45f);
         }
         else if (Input.GetKeyDown(KeyCode.R))
         {
-            RotateSelectedTileAtMousePos(Vector2ToGrid(mouse), 45f);
+            if (ToolSelection.instance.currentTool == ToolSelection.ToolType.SelectionRectangle && SelectTiles.instance.HasSelectedTiles())
+                SelectTiles.instance.RotateAllSelectedTiles(45f);
+            else
+                RotateSelectedTileAtMousePos(Vector2ToGrid(mouse), 45f);
         }
         #endregion
 
+        /*if (Input.GetKeyDown(KeyCode.Q))
+            Debug.Log(Vector2ToGrid(cam.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, cam.nearClipPlane))).ToString());*/
     }
 
     private void LateUpdate()
@@ -264,6 +272,7 @@ public class GridManager : MonoBehaviour
         UnityEngine.Tilemaps.Tile newTile = tilemapTiles[(int)tileToPlace.type];
         newTile.color = tileToPlace.tileColor;
 
+        LayerManager.instance.GetLayer(layerID).tilemap.SetTile(tileToPlace.gridPos, null);
         LayerManager.instance.GetLayer(layerID).tilemap.SetTile(tileToPlace.gridPos, newTile);
     }
 
@@ -298,7 +307,7 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    Tile GetCellByGridPos(int layerID, Vector2 cellGridPos)
+    public Tile GetCellByGridPos(int layerID, Vector2 cellGridPos)
     {
         for (int i = 0; i < LayerManager.instance.layers[layerID].allTiles.Count; i++)
         {

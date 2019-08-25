@@ -62,6 +62,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\ChatManager.cs" />
+    <Compile Include="Assets\Scripts\CustomExtensions.cs" />
     <Compile Include="Assets\Scripts\CustomNetworkManager.cs" />
     <Compile Include="Assets\Scripts\GridManager.cs" />
     <Compile Include="Assets\Scripts\LayerDisplay.cs" />
@@ -69,10 +70,12 @@
     <Compile Include="Assets\Scripts\Manager.cs" />
     <Compile Include="Assets\Scripts\NetworkScriptsEnabler.cs" />
     <Compile Include="Assets\Scripts\SaveSystem.cs" />
+    <Compile Include="Assets\Scripts\SelectTiles.cs" />
     <Compile Include="Assets\Scripts\ShapePicker.cs" />
     <Compile Include="Assets\Scripts\SimpleMatchMaker.cs" />
     <Compile Include="Assets\Scripts\TileDisplay.cs" />
     <Compile Include="Assets\Scripts\TitleScreen.cs" />
+    <Compile Include="Assets\Scripts\ToolSelection.cs" />
     <Compile Include="Assets\Scripts\UndoActions.cs" />
     <Compile Include="Assets\SimpleColorPicker\Scripts\ColorJoystick.cs" />
     <Compile Include="Assets\SimpleColorPicker\Scripts\ColorMode.cs" />
