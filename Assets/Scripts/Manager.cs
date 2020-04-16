@@ -463,5 +463,18 @@ public class Manager : NetworkBehaviour
         SelectTiles.instance.RotateTileOnSelectionTilemap(_gridPos, degrees, selectionTilemapId);
     }
     #endregion
+
+    #region DeleteSelectedTiles
+    [Command]
+    public void CmdDeleteTileOnSelectionTilemap(Vector2 _gridPos, int selectionTilemapId)
+    {
+        RpcDeleteTileOnSelectionTilemap(_gridPos, selectionTilemapId);
+    }
+    [ClientRpc]
+    void RpcDeleteTileOnSelectionTilemap(Vector2 _gridPos, int selectionTilemapId)
+    {
+        SelectTiles.instance.DeleteTileOnSelectionTilemap(_gridPos, selectionTilemapId);
+    }
+    #endregion
 }
 

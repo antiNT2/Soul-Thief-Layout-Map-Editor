@@ -136,6 +136,15 @@ public class GridManager : MonoBehaviour
             else
                 RotateSelectedTileAtMousePos(Vector2ToGrid(mouse), 45f);
         }
+
+        if (Input.GetKeyDown(KeyCode.Delete))
+        {
+            if (ToolSelection.instance.currentTool == ToolSelection.ToolType.SelectionRectangle && SelectTiles.instance.HasSelectedTiles())
+            {
+                UndoActions.instance.AddAction();
+                SelectTiles.instance.DeleteAllSelectedTiles();
+            }
+        }
         #endregion
 
         /*if (Input.GetKeyDown(KeyCode.Q))

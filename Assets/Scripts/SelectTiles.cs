@@ -43,12 +43,7 @@ public class SelectTiles : MonoBehaviour
             {
                 if (IsMouseOnSelectedTiles() == false)
                 {
-                    PlaceTilesToRealTilemap();
-                    spawnedRectangle.transform.position = cam.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, cam.nearClipPlane));
-                    _anchorPoint = spawnedRectangle.transform.position;
-                    rectangleSprite.size = Vector2.zero;
-                    spawnedRectangle.SetActive(true);
-                    Manager.localPlayerManager.CmdEnableRectangle(int.Parse(Manager.localPlayerManager.netId.ToString()));
+                    LeaveSelection();
                 }
             }
             else if ((Input.GetKey(KeyCode.Mouse0) || Input.GetKey(KeyCode.Mouse1)) && spawnedRectangle != null) //drag
@@ -184,7 +179,7 @@ public class SelectTiles : MonoBehaviour
         for (int i = 0; i < selectedTiles.Count; i++)
         {
             Tile tileToDeselect = selectedTiles[i];
-            if (tileToDeselect != null)
+            if (tileToDeselect != null && tileToDeselect.destroyed == false)
             {
                 Vector2 newPos = new Vector2(tileToDeselect.gridPos.x + Mathf.RoundToInt(selectionTM.transform.position.x), tileToDeselect.gridPos.y + Mathf.RoundToInt(selectionTM.transform.position.y));
                 Manager.localPlayerManager.CmdPlaceTile((int)tileToDeselect.type, tileToDeselect.tileColor, newPos, tileToDeselect.layerID, int.Parse(Manager.localPlayerManager.netId.ToString()), tileToDeselect.rotationDegrees);
@@ -207,7 +202,7 @@ public class SelectTiles : MonoBehaviour
 
         scrollSpeed *= cam.orthographicSize;
 
-        if (mousePos.x < lastMousePos.x - minimumScroll)
+        /*if (mousePos.x < lastMousePos.x - minimumScroll)
         {
             selectionTileMap.transform.position = Vector3.Lerp(selectionTileMap.transform.position, selectionTileMap.transform.position + Vector3.left, Time.deltaTime * scrollSpeed * mouseDeltaX);
         }
@@ -222,7 +217,9 @@ public class SelectTiles : MonoBehaviour
         if (mousePos.y > lastMousePos.y + (minimumScroll * 0.6f))
         {
             selectionTileMap.transform.position = Vector3.Lerp(selectionTileMap.transform.position, selectionTileMap.transform.position + Vector3.up, Time.deltaTime * scrollSpeed * mouseDeltaY);
-        }
+        }*/
+
+        selectionTileMap.transform.position += (cam.ScreenToWorldPoint(mousePos) - cam.ScreenToWorldPoint(lastMousePos));
     }
 
     bool IsMouseOnSelectedTiles()
@@ -237,6 +234,17 @@ public class SelectTiles : MonoBehaviour
                 return true;
         }
         return false;
+    }
+
+    void LeaveSelection()
+    {
+        print("STOP SELECTION");
+        PlaceTilesToRealTilemap();
+        spawnedRectangle.transform.position = cam.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, cam.nearClipPlane));
+        _anchorPoint = spawnedRectangle.transform.position;
+        rectangleSprite.size = Vector2.zero;
+        spawnedRectangle.SetActive(true);
+        Manager.localPlayerManager.CmdEnableRectangle(int.Parse(Manager.localPlayerManager.netId.ToString()));
     }
 
     public bool HasSelectedTiles()
@@ -257,6 +265,17 @@ public class SelectTiles : MonoBehaviour
             RotateTileOnSelectionTilemap(selectedTiles[i].gridPos, degrees, -1);
             Manager.localPlayerManager.CmdRotateTileOnSelectionTilemap(selectedTiles[i].gridPos, degrees, int.Parse(Manager.localPlayerManager.netId.ToString()));
         }
+    }
+
+    public void DeleteAllSelectedTiles()
+    {
+        for (int i = 0; i < selectedTiles.Count; i++)
+        {
+            selectedTiles[i].destroyed = true;
+            DeleteTileOnSelectionTilemap(selectedTiles[i].gridPos, -1);
+            Manager.localPlayerManager.CmdDeleteTileOnSelectionTilemap(selectedTiles[i].gridPos, int.Parse(Manager.localPlayerManager.netId.ToString()));
+        }
+        PlaceTilesToRealTilemap();
     }
 
     #region Networking
@@ -339,6 +358,26 @@ public class SelectTiles : MonoBehaviour
             selectionTM.SetTransformMatrix(gridPos, matrix);
         }
     }
+
+    public void DeleteTileOnSelectionTilemap(Vector2 _gridPos, int selectionTilemapId)
+    {
+        if (selectionTilemapId != int.Parse(Manager.localPlayerManager.netId.ToString())) //prevents doing it to the local player
+        {
+            if (selectionTileMap == null)
+                selectionTileMap = Manager.localPlayerManager.GetComponentInChildren<UnityEngine.Tilemaps.Tilemap>();
+
+            UnityEngine.Tilemaps.Tilemap selectionTM;
+            if (selectionTilemapId != -1)
+                selectionTM = Manager.localPlayerManager.FindPlayerById(selectionTilemapId).GetComponentInChildren<UnityEngine.Tilemaps.Tilemap>();
+            else
+                selectionTM = selectionTileMap;
+
+
+            Vector3Int gridPos = new Vector3Int((int)_gridPos.x, (int)_gridPos.y, -10);
+            selectionTM.SetTile(gridPos, null);
+        }
+    }
+
     #endregion
 
 }

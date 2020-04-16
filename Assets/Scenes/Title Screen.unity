@@ -3247,7 +3247,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Soul Thief Map Layout Editor
+  m_Text: Map Layout Editor
 --- !u!222 &1788678470
 CanvasRenderer:
   m_ObjectHideFlags: 0
